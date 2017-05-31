@@ -58,7 +58,7 @@ scrapy startproject projectName
 
 ## 定义Item对象
 
-创建一个scrapy.Item类，将所要爬取的字段定义好
+创建一个`scrapy.Item`类，将所要爬取的字段定义好
 
 ``` python
 import scrapy

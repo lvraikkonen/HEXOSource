@@ -18,7 +18,7 @@ tags:
 
 ## 使用ROW_NUMBER()函数分页
 
-SQL Server 2005之后引入了 ```ROW_NUMBER()``` 函数，通过该函数根据定好的排序字段规则，产生记录序号
+SQL Server 2005之后引入了 `ROW_NUMBER()` 函数，通过该函数根据定好的排序字段规则，产生记录序号
 
 ``` sql
 SELECT  ROW_NUMBER() OVER ( ORDER BY dbo.Products.ProductID DESC ) AS rownum
@@ -39,7 +39,7 @@ ORDER BY temp.UnitPrice
 
 ## 使用OFFSET FETCH子句分页
 
-SQL Server 2012中引入了OFFSET-FETCH语句，可以通过使用OFFSET-FETCH过滤器来实现分页
+SQL Server 2012中引入了`OFFSET-FETCH`语句，可以通过使用`OFFSET-FETCH`过滤器来实现分页
 
 ``` sql
 SELECT  * 
