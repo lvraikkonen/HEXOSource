@@ -44,7 +44,7 @@ vi .gitignore
 按需添加如下内容：
 
 ```
-.DS_Store 
+.DS_Store
 Thumbs.db
 db.json  
 *.log
@@ -72,6 +72,34 @@ git push -u origin hexo_source
 git add .
 git commit -m "..."	 # 双引号内填写更新内容
 git push origin hexo_source	# 或者 git push
+```
+
+## 通过 git submodule 来同步第三方主题
+
+我们一般会选择第三方主题的仓库直接git clone下来。这是一个非常不好的习惯，正确做法是：Fork该第三方主题仓库，这样就会在自己账号下生成一个同名的仓库，并对应一个url，我们应该git clone自己账号下的url。
+
+这样做的原因是：我们很有可能在原来主题基础上做一些自定义的小改动，为了保持多终端的同步，我们需要将这些改动提交到远程仓库。而第三方仓库我们是无法直接push的。
+
+这样就会出现git仓库的嵌套问题，我们通过git submodule来解决这个问题。
+
+``` shell
+git submodule add git@github.com:lvraikkonen/hexo-theme-next.git themes/next
+```
+
+我们修改主题后:
+
+``` shell
+git commit -am "refine themes"
+git push origin hexo_source
+```
+
+然后就完成了第三方主题的备份
+
+在其他电脑同步源文件时，需要执行如下命令来同步主题
+
+``` shell
+git submodule init // 这句很重要
+git submodule update
 ```
 
 ## 新机器同步
