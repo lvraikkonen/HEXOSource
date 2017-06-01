@@ -141,3 +141,9 @@ git push origin hexo_source
 ```
 
 至此，已经完成了博客的撰写并修改了远端仓库的博客源文件，然后使用`hexo g`和`hexo d`更新博客就OK啦！
+
+
+## 参考
+
+- [关于博客同步的解决办法](http://devtian.me/2015/03/17/blog-sync-solution/)
+- [使用Git Submodule管理子模块](https://segmentfault.com/a/1190000003076028)
