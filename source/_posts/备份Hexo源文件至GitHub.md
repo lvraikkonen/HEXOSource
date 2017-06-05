@@ -142,6 +142,21 @@ git push origin hexo_source
 
 至此，已经完成了博客的撰写并修改了远端仓库的博客源文件，然后使用`hexo g`和`hexo d`更新博客就OK啦！
 
+## 新机器安装npm失败解决方案
+
+由于众所周知的原因，好多东西无法安装，可以添加第三方源来解决
+
+``` shell
+# 添加淘宝源
+npm install -g cnpm --registry=https://registry.npm.taobao.org
+# nrm类似包管理器
+cnpm install nrm -g
+nrm ls
+# 使用淘宝
+nrm use taobao
+npm install -g hexo-cli
+```
+
 
 ## 参考
 
