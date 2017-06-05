@@ -89,3 +89,11 @@ search:
   field: post
   format: html
   limit: 10000
+
+# add search engine Algolia
+algolia:
+  applicationID: 'JWQGEFMRGT'
+  apiKey: '7c12daa85b9bf759fcde9b547d3a9349'
+  adminApiKey: 'f14738e7e2e4ec7b39df73b1b2473ad9'
+  indexName: 'lvraikkonen_blog'
+  chunkSize: 5000
