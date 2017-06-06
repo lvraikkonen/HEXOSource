@@ -163,6 +163,10 @@ npm install --save hexo-algolia
 hexo algolia
 ```
 
+*注意：*
+
+> 如果发现没有上传数据，这时候可以先 `hexo clean` 然后再 `hexo algolia` _
+
 在 `主题配置文件`中，找到Algolia Search 配置部分：
 
 ``` yml
