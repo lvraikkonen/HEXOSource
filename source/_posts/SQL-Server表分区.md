@@ -112,6 +112,8 @@ GO
 
 执行上面的脚本，可以创建4个文件组
 
+![fileGroups](http://7xkfga.com1.z0.glb.clouddn.com/createFileGroup.png)
+
 ## 创建分区函数
 
 指定分依据区列（依据列唯一），分区数据范围规则，分区数量，然后将数据映射到一组分区上。
