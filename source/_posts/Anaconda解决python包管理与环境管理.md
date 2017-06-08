@@ -20,6 +20,8 @@ Anaconda具有跨平台、包管理、环境管理的特点，因此很适合快
 
 Anaconda的下载页参见 [官网下载](https://www.continuum.io/downloads)
 
+<!-- more -->
+
 Anaconda安装成功之后，可以检查所安装的版本
 
 ``` bash
@@ -101,28 +103,28 @@ conda list
 
 多版本的Python或者R等语言，在Jupyter中被称作kernel。
 
-- 如果这个Python版本已经存在（比如我们刚才添加的py27环境），那么你可以直接为这个环境安装 `ipykernel`包
+如果这个Python版本已经存在（比如我们刚才添加的py27环境），那么你可以直接为这个环境安装 `ipykernel`包
 
-    ``` bash
-    conda install -n py27 ipykernel
-    ```
+``` bash
+conda install -n py27 ipykernel
+```
 
-    note:
+note:
 
-    > -n 后面的名字为所要安装到的环境名
+> -n 后面的名字为所要安装到的环境名
 
 
-    然后激活这个环境
+然后激活这个环境
 
-    ``` bash
-    python -m ipykernel install --user
-    ```
+``` bash
+python -m ipykernel install --user
+```
 
-- 如果所需版本并不是已有的环境，可以直接在创建环境时便为其预装 `ipykernel`。
+如果所需版本并不是已有的环境，可以直接在创建环境时便为其预装 `ipykernel`。
 
-    ``` bash
-    conda create -n py27 python=2.7 ipykernel
-    ```
+``` bash
+conda create -n py27 python=2.7 ipykernel
+```
 
 打开jupyter notebook
 
