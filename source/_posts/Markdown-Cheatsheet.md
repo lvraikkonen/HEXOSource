@@ -4,6 +4,7 @@ date: 2017-05-31 11:38:38
 tags:
     - Markdown
     - 备忘
+    - Cheat Sheet
 ---
 
 
