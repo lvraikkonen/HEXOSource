@@ -1,9 +1,11 @@
 ---
 title: 看懂SQL Server执行计划
-date: 2017-06-02 9:28:00
+date: 2017-06-02 09:28:00
 tags:
-    - SQL Server
+  - SQL Server
+
 ---
+
 
 当我们写的SQL语句传到SQL Server的时候，查询分析器会将语句依次进行解析（Parse）、绑定（Bind）、查询优化（Optimization，有时候也被称为简化）、执行（Execution）。除去执行步骤外，前三个步骤之后就生成了执行计划，也就是SQL Server按照该计划获取物理数据方式，最后执行步骤按照执行计划执行查询从而获得结果。
 
@@ -54,6 +56,8 @@ Estimated Execution Plans vs. Actual Execution Plans
 
 操作符分为阻断式 `blocking` 和非阻断式`non-blocking`
 
+## 常见操作符的执行计划解释
+
 ### Table Scan 表扫描
 
 <img src='https://i-msdn.sec.s-msft.com/dynimg/IC121534.gif' atl="Table Scan" align="left"/><br>
@@ -71,6 +75,20 @@ Estimated Execution Plans vs. Actual Execution Plans
 
 - 非聚集索引扫描：非聚集索引的体积是根据你的索引创建情况而定的，可以只包含你要查询的列。那么进行非聚集索引扫描，便是你非聚集中包含的列的所有行进行遍历，查找出你想要的数据。
 
+看下面这个查询
+
+``` sql
+SELECT ct.*
+FROM Person.ContactType AS ct;
+```
+
+这个表有一个聚簇索引PK_ContactType_ContactTypeID，聚簇索引的叶子结点是存储数据的，所以对于这个聚簇索引的扫描和全表扫面基本类似，基本也是一行一行地进行扫描来满足查询。
+
+![IndexScan](http://7xkfga.com1.z0.glb.clouddn.com/IndexScan.png)
+
+
+如果在执行计划中遇到索引扫描，说明查询有可能返回比需要更多的行，这时候建议使用 `WHERE`语句去优化查询，确保只是需要的那些行被返回。
+
 ### Clustered Index Seek / Index Seek 聚集索引查找/非聚集索引查找
 
 <img src='https://i-msdn.sec.s-msft.com/dynimg/IC322.gif' atl="Clustered Index Scan" align="left"/><br>
@@ -80,6 +98,26 @@ Estimated Execution Plans vs. Actual Execution Plans
 - 聚集索引查找：聚集索引包含整个表的数据，也就是在聚集索引的数据上根据键值取数据。
 
 - 非聚集索引查找：非聚集索引包含创建索引时所包含列的数据，在这些非聚集索引的数据上根据键值取数据。
+
+``` sql
+SELECT ct.*
+FROM Person.ContactType AS ct
+WHERE ct.ContactTypeID = 7
+```
+
+![IndexSeek](http://7xkfga.com1.z0.glb.clouddn.com/ClusterIndexSeek.png)
+
+这个表有一个聚簇索引PK_ContactType_ContactTypeID，建在ContactTypeID字段上，查询使用了这个聚簇索引来查找指定的数据。
+
+索引查找和索引扫描不同，使用查找可以让优化器准确地通过键值找到索引的位置。
+
+以上几种查询的性能对比：
+
+- [Table Scan] 表扫描（最慢）：对表记录逐行进行检查
+- [Clustered Index Scan] 聚集索引扫描（较慢）：按聚集索引对记录逐行进行检查
+- [Index Scan] 索引扫描（普通）：根据索引滤出部分数据在进行逐行检查
+- [Index Seek] 索引查找（较快）：根据索引定位记录所在位置再取出记录
+- [Clustered Index Seek] 聚集索引查找（最快）：直接根据聚集索引获取记录
 
 ### Key Lookup 键值查找
 
@@ -95,27 +133,19 @@ Estimated Execution Plans vs. Actual Execution Plans
 
 跟键值查找类似，只不过RID查找，是需要查找的列没有完全被非聚集索引包含，而剩余的列所在的表又不存在聚集索引，不能键值查找，只能根据行表示Rid来查询数据。
 
-### Hash Match
 
-<img src='https://i-msdn.sec.s-msft.com/dynimg/IC113753.gif' atl="Hash Match" align="left"/><br>
+``` sql
+SELECT p.BusinessEntityID
+     , p.LastName
+     , p.FirstName
+     , p.NameStyle
+FROM Person.Person AS p
+WHERE p.LastName LIKE 'Jaf%';
+```
 
-这个图标有两种地方用到，一种是表关联，一种是数据聚合运算时。
+![keyLookup](http://7xkfga.com1.z0.glb.clouddn.com/keyLookup.png)
 
-> Hashing：在数据库中根据每一行的数据内容，转换成唯一符号格式，存放到临时哈希表中，当需要原始数据时，可以给还原回来。类似加密解密技术，但是他能更有效的支持数据查询。
-
-> Hash Table：通过hashing处理，把数据以key/value的形式存储在表格中，在数据库中他被放在tempdb中。
-
-- 表关联：
-
-- 数据聚合运算
-
-### Nested Loops
-
-这个操作符号，把两个不同列的数据集汇总到一张表中。提示信息中的Output List中有两个数据集，下面的数据集（inner set）会一一扫描与上面的数据集（out set），直到扫描完为止，这个操作才算是完成。
-
-### Merge Join
-
-这种关联算法是对两个已经排过序的集合进行合并。如果两个聚合是无序的则将先给集合排序再进行一一合并，由于是排过序的集合，左右两个集合自上而下合并效率是相当快的。
+`Person.Person` 表有非聚簇索引 `IX_Person_LastName_FirstName_MiddleName`作用在LastName、FirstName和MiddleName列上面，而列 `NameStyle`并没有被非聚集索引所包含，所以需要使用 `KeyLookUp`在聚集索引上查找不包含的列。如果这个列所在的表不存在聚集索引，那就只能通过RId，也就是行号在查询了。
 
 ### Sort
 
@@ -129,16 +159,56 @@ Estimated Execution Plans vs. Actual Execution Plans
 
 在需要查询的列中需要自定义列，比如count(\*) as cnt , select name+''+age 等会出现此符号。
 
-## 数据查询
+## JOIN 连接查询
 
-SQL Server有几种方式查找数据记录：
+当多表连接时，SQL Server会采用三类不同的连接方式：散列连接，循环嵌套连接，合并连接
 
-- [Table Scan] 表扫描（最慢）：对表记录逐行进行检查
-- [Clustered Index Scan] 聚集索引扫描（较慢）：按聚集索引对记录逐行进行检查
-- [Index Scan] 索引扫描（普通）：根据索引滤出部分数据在进行逐行检查
-- [Index Seek] 索引查找（较快）：根据索引定位记录所在位置再取出记录
-- [Clustered Index Seek] 聚集索引查找（最快）：直接根据聚集索引获取记录
 
+### Hash Join
+
+<img src='https://i-msdn.sec.s-msft.com/dynimg/IC113753.gif' atl="Hash Match" align="left"/><br>
+
+这个图标有两种地方用到，一种是表关联，一种是数据聚合运算时 (`GROUP BY`)
+
+下面有两个概念：
+
+> Hashing：在数据库中根据每一行的数据内容，转换成唯一符号格式，存放到临时哈希表中，当需要原始数据时，可以给还原回来。类似加密解密技术，但是他能更有效的支持数据查询。
+
+> Hash Table：通过hashing处理，把数据以key/value的形式存储在表格中，在数据库中他被放在tempdb中。
+
+Hash Join是做大数据集连接时的常用方式，优化器使用两个表中较小（相对较小）的表利用Join Key在内存中建立散列表 `Hash Table`，然后扫描较大的表并探测散列表，找出与Hash表匹配的行。这种方式适用于较小的表完全可以放于内存中的情况
+
+如果在执行计划中见到Hash Match Join，也许应该检查一下是不是缺少或者没有使用索引、没有用到WHERE等等。
+
+### Nested Loops Join
+
+<img src='https://i-msdn.sec.s-msft.com/dynimg/IC138581.gif' atl="Nested Loop Join" align="left"/><br>
+
+这个操作符号，把两个不同列的数据集汇总到一张表中。提示信息中的Output List中有两个数据集，下面的数据集（inner set）会一一扫描与上面的数据集（out set），直到扫描完为止，这个操作才算是完成。
+
+对于被连接的数据子集较小的情况，嵌套循环连接是个较好的选择。在嵌套循环中，内表被外表驱动，外表返回的每一行都要在内表中检索找到与它匹配的行，因此整个查询返回的结果集不能太大
+
+### Merge Join
+
+<img src='https://i-msdn.sec.s-msft.com/dynimg/IC173813.gif' atl="Merge Join" align="left"/><br>
+
+这种关联算法是对两个已经排过序的集合进行合并。如果两个聚合是无序的则将先给集合排序再进行一一合并，由于是排过序的集合，左右两个集合自上而下合并效率是相当快的。
+
+通常情况下散列连接的效果都比排序合并连接要好，然而如果行源已经被排过序，在执行排序合并连接时不需要再排序了，这时排序合并连接的性能会优于散列连接。Merge join 用在没有索引，并且数据已经排序的情况。
+
+``` sql
+SELECT c.CustomerID
+FROM Sales.SalesOrderDetail od
+JOIN Sales.SalesOrderHeader oh
+ON od.SalesOrderID = oh.SalesOrderID
+JOIN Sales.Customer c ON oh.CustomerID = c.CustomerID
+```
+
+![joinPlan](http://7xkfga.com1.z0.glb.clouddn.com/MergeJoin.png)
+
+由于没有使用WHERE语句，所以优化器对Customer表使用聚集索引扫描，对SalesOrderHeader表使用非聚集索引扫描
+
+Customer表和SalesOrderHeader表使用Merge Join操作符进行关联，关联字段是CustomerID字段，这个字段在上面的索引扫描之后都是有序的。如果不是有序的，优化器会在前面进行排序或者是直接将两个表进行Hash Join连接。
 
 ## 根据执行计划细节要做的优化操作
 
