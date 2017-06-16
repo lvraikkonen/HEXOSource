@@ -6,6 +6,8 @@ date: 2017-06-12 17:27:09
 ---
 
 
+下面总结了一下常见的、易错的Python面试题
+
 <!-- more -->
 
 ## Question 1
@@ -25,6 +27,8 @@ print "list1 = %s" % list1
 print "list2 = %s" % list2
 print "list3 = %s" % list3
 ```
+
+
 
 ### 答案：
 
