@@ -54,7 +54,7 @@ OVER (
 
 > Divides the query result set into partitions. The window function is applied to each partition separately and computation restarts for each partition.
 
-通过PARTITION BY 得到的窗口集是基于当前查询结果的当前行的一个集,，比如说 PARTITION BY CustomerID，当前行的 CustomerID = 1，那么对于当前行的这个 Window 集就是在当前查询结果之上再加上 CustomerID = 1 的一个查询结果。
+通过PARTITION BY 得到的窗口集是基于当前查询结果的当前行的一个集，比如说 PARTITION BY CustomerID，当前行的 CustomerID = 1，那么对于当前行的这个 Window 集就是在当前查询结果之上再加上 CustomerID = 1 的一个查询结果。
 
 
 ### Order
@@ -66,6 +66,8 @@ Order By子句对于诸如Row_Number()，Rank()，Lead()，LAG()等函数是必�
 ### ROW / RANGE
 
 > Further limits the rows within the partition by specifying start and end points within the partition. This is done by specifying a range of rows with respect to the current row either by logical association or physical association. Physical association is achieved by using the ROWS clause.
+
+ROWS 子句通过指定当前行之前或之后的固定数目的行，限制分区中的行数。 RANGE 子句通过指定针对当前行中的值的某一范围的值，从逻辑上限制分区中的行数
 
 ## 简单的例子
 
@@ -141,3 +143,120 @@ SELECT orderid
      , val - AVG(val) OVER() AS diffall
 FROM Sales.OrderValues
 ```
+
+## 使用窗口函数的例子
+
+### 将 OVER 子句与 ROW_NUMBER 函数结合使用
+
+下面的脚本将 OVER 子句与 ROW_NUMBER 函数一起使用来显示分区内各行的行号，分区由 `PARTITION BY PostalCode`确定
+
+``` sql
+SELECT ROW_NUMBER() OVER(PARTITION BY PostalCode ORDER BY SalesYTD DESC) AS "Row Number"
+     , p.LastName
+     , s.SalesYTD
+     , a.PostalCode  
+FROM Sales.SalesPerson AS s   
+INNER JOIN Person.Person AS p   
+  ON s.BusinessEntityID = p.BusinessEntityID  
+INNER JOIN Person.Address AS a   
+  ON a.AddressID = p.BusinessEntityID  
+WHERE TerritoryID IS NOT NULL AND SalesYTD <> 0  
+ORDER BY PostalCode;
+```
+
+![rowNumber](http://7xkfga.com1.z0.glb.clouddn.com/rowNumber.png)
+
+用这种分配行号的方法，可以完成例如分页、去除重复元素、返回每组前N条数据等实际需求
+
+### 将 OVER 子句与聚合函数结合使用
+
+``` sql
+SELECT SalesOrderID, ProductID, OrderQty  
+     , SUM(OrderQty) OVER(PARTITION BY SalesOrderID) AS Total  
+     , AVG(OrderQty) OVER(PARTITION BY SalesOrderID) AS "Avg"  
+     , COUNT(OrderQty) OVER(PARTITION BY SalesOrderID) AS "Count"  
+     , MIN(OrderQty) OVER(PARTITION BY SalesOrderID) AS "Min"  
+     , MAX(OrderQty) OVER(PARTITION BY SalesOrderID) AS "Max"  
+FROM Sales.SalesOrderDetail   
+WHERE SalesOrderID IN(43659,43664);  
+```
+
+![partitionGroup](http://7xkfga.com1.z0.glb.clouddn.com/partitionGroup.png)
+
+### 生成移动平均值和累计合计
+
+下面的示例将 AVG 和 SUM 函数与 OVER 子句结合使用，以便为 Sales.SalesPerson 表中的每个地区提供年度销售额的累计合计。 数据按 TerritoryID 分区并在逻辑上按 SalesYTD 排序
+
+``` sql
+SELECT BusinessEntityID
+     , TerritoryID   
+     , DATEPART(yy,ModifiedDate) AS SalesYear  
+     , CONVERT(varchar(20),SalesYTD,1) AS  SalesYTD  
+     , CONVERT(varchar(20),AVG(SalesYTD) OVER (PARTITION BY TerritoryID   
+                                            ORDER BY DATEPART(yy,ModifiedDate)   
+                                           ),1) AS MovingAvg  
+     , CONVERT(varchar(20),SUM(SalesYTD) OVER (PARTITION BY TerritoryID   
+                                            ORDER BY DATEPART(yy,ModifiedDate)   
+                                            ),1) AS CumulativeTotal  
+FROM Sales.SalesPerson  
+WHERE TerritoryID IS NULL OR TerritoryID < 5  
+ORDER BY TerritoryID, SalesYear; 
+```
+
+在 OVER 子句中指定的 ORDER BY 子句将确定应用 AVG 函数的逻辑顺序。
+
+再往下，ORDER BY之后也可以指定 ROWS 子句进一步限制窗口的大小
+
+``` sql
+SELECT BusinessEntityID, TerritoryID   
+     , DATEPART(yy,ModifiedDate) AS SalesYear  
+     , CONVERT(varchar(20),SalesYTD,1) AS  SalesYTD  
+     , CONVERT(varchar(20),SUM(SalesYTD) OVER (PARTITION BY TerritoryID   
+                                             ORDER BY DATEPART(yy,ModifiedDate)   
+                                             ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING ),1) AS CumulativeTotal  
+FROM Sales.SalesPerson  
+WHERE TerritoryID IS NULL OR TerritoryID < 5; 
+```
+
+
+在这个例子里面， ROWS子句 `ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING` 限制窗口为： **当前行的行** 对其 **下面1行**
+
+所以查询结果为：
+
+![rowsWindow](http://7xkfga.com1.z0.glb.clouddn.com/rowsWindow.png)
+
+``` sql
+SELECT t.OrderYear
+     , t.OrderMonth
+     , t.TotalDue
+     , SUM(t.TotalDue) OVER(PARTITION BY OrderYear, OrderMonth
+                            ORDER BY t.OrderYear, t.OrderMonth
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS 'RunningTotal'
+FROM
+(
+	SELECT YEAR(OrderDate) AS 'OrderYear'
+         , MONTH(OrderDate) AS 'OrderMonth'
+         , SalesPersonID
+         , TotalDue
+	FROM Sales.SalesOrderHeader 
+) AS t
+WHERE t.SalesPersonID = 274 AND t.OrderYear = 2005
+```
+
+在这个例子中，窗口被限制为：第一行 (`UNBOUNDED PRECEDING`) 到当前行 (`CURRENT ROW`)
+
+查询结果为：
+
+![row2](http://7xkfga.com1.z0.glb.clouddn.com/rows2.png)
+
+所以11月份的累计总和为4723 和 7140`(4723.1073+2417.4793)`
+
+如果把`ROWS`限制改成`RANGE`会怎么样呢?
+
+结果如下：
+
+![rangeWindows](http://7xkfga.com1.z0.glb.clouddn.com/RANGE2.png)
+
+RANGE选项包含窗口里的所有行，和当前行有相同ORDER BY值。上面的例子里面，对于2005年11月的2条记录你拿到同个汇总，因为这2行有**同样的ORDER BY值（2005年11月）**
+
+**note: 使用ROWS选项你在物理级别定义在你窗口里有多少行。使用RANGE选项取决于ORDER BY值在窗口里有多少行被包含**
