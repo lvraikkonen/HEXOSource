@@ -69,6 +69,23 @@ Order By子句对于诸如Row_Number()，Rank()，Lead()，LAG()等函数是必�
 
 ROWS 子句通过指定当前行之前或之后的固定数目的行，限制分区中的行数。 RANGE 子句通过指定针对当前行中的值的某一范围的值，从逻辑上限制分区中的行数
 
+```
+ROWS BETWEEN UNBOUNDED PRECEDING |
+                   <n> PRECEDING |
+                   <n> FOLLOWING |
+             CURRENT ROW
+or
+
+ROWS BETWEEN UNBOUNDED FOLLOWING |
+                   <n> PRECEDING |
+                   <n> FOLLOWING |
+             CURRENT ROW
+```
+
+- UNBOUNDED PRECEDING 指的是相对于当前行来说之前的所有的行
+- UNBOUNDED FOLLOWING 指的是相对于当前行来说之后的所有的行
+- CURRENT ROW 就是当前行
+
 ## 简单的例子
 
 下面用一个简单的例子表示传统的聚合函数和窗口函数的区别
