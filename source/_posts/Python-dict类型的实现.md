@@ -2,7 +2,7 @@
 title: Python dict类型的实现
 date: 2017-07-18 16:38:09
 tags:
-        - python
+        - Python
         - dict
         - hash
 ---

@@ -1,7 +1,7 @@
 title: 使用Scrapy编写爬虫
 date: 2016-09-18 10:39:32
-tags: 
-- python 
+tags:
+- Python 
 - 爬虫
 categories: [Python, 框架]
 
@@ -89,8 +89,8 @@ class AirqualityItem(scrapy.Item):
 
 Spider类里面定义如何从一个domain组中爬取数据，包括：初始化url列表、如何跟踪url和如何解析页面提取Item，定义一个Spider，需要继承scrapy.Spider类
 
-- name: 定义Spider的名称，以后调用爬虫应用时候使用; 
-- start_url: 初始化url; 
+- name: 定义Spider的名称，以后调用爬虫应用时候使用;
+- start_url: 初始化url;
 - parse(): 解析下载后的Response对象，解析并返回页面数据并提取出相应的Item对象
 
 
@@ -106,7 +106,7 @@ class AirQualitySpider(CrawlSpider):
     download_delay = 2
     allowed_domains = ['aqicn.org']
     start_urls = ['http://aqicn.org/city/beijing/en/']
-    
+
     def parse(self, response):
         sel = Selector(response)
         pm25 = int(sel.xpath('//*[@id="cur_pm25"]/text()').extract()[0])
@@ -152,7 +152,7 @@ class AirqualityPipeline(object):
         connection = pymongo.MongoClient(settings['MONGODB_SERVER'], settings['MONGODB_PORT'])
         db = connection[settings['MONGODB_DB']]
         self.collection = db[settings['MONGODB_COLLECTION']]
-        
+
     def process_item(self, item, spider):
         # save data into mongodb
         valid = True
