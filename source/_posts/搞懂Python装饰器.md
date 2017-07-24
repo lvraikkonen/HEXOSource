@@ -215,6 +215,9 @@ print(avg(12))
 
 了解了闭包之后，下面就可以用嵌套函数实现装饰器了。事实上，装饰器就是一种闭包的应用，只不过传递的是函数。
 
+
+### 无参数装饰器
+
 下面写一个简单的装饰器的例子
 
 
@@ -248,6 +251,14 @@ hello_bold = makebold(hello)
 hello_italic = makeitalic(hello)
 ```
 
+装饰器是可以叠加使用的，对于Python中的"@"语法糖，装饰器的调用顺序与使用 @ 语法糖声明的顺序相反，上面案例中叠加装饰器相当于如下包装顺序：
+
+``` python
+hello = makebold(makeitalic(hello))
+```
+
+### 被装饰的函数带参数
+
 再来一个例子
 
 ``` python
@@ -258,6 +269,7 @@ def clock(func):
 
     @functools.wraps(func)
     def clocked(*args, **kwargs):
+        """ in wrapper """
         t0 = time.time()
 
         # execute
@@ -280,16 +292,20 @@ def clock(func):
 
 @clock
 def snooze(seconds):
+    """ sleep for seconds """
     time.sleep(seconds)
 
 @clock
 def factorial(n):
+    """ calculate n! """
     return 1 if n<2 else n*factorial(n-1)
 ```
 
-`snooze`和`factorial`函数会作为func参数传给clock函数，然后clock函数会返回`clocked`函数。所以现在`factorial`保留的是`clocked`函数的引用
+`snooze`和`factorial`函数会作为func参数传给clock函数，然后clock函数会返回`clocked`函数。所以现在`factorial`保留的是`clocked`函数的引用。但是这也是装饰器的一个副作用：会把被装饰函数的一些元数据，例如函数名、文档字符串、函数签名等信息覆盖掉。下面会使用functools库中的 `@wraps` 装饰器来避免这个。
 
 ![func_ref](http://7xkfga.com1.z0.glb.clouddn.com/func_ref.png)
+
+内嵌包装函数 `clocked` 的参数跟被装饰函数的参数对应，这里使用了 `(*args, **kwargs)`，是为了适应可变参数。
 
 clocked函数做了以下几件事：
 1. 记录初始时间
@@ -305,12 +321,191 @@ print('6! = ', factorial(6))
 
 ![result](http://7xkfga.com1.z0.glb.clouddn.com/result.png)
 
-装饰器的典型行为就是：**把被装饰的函数体换成新函数，二者接受相同的参数，返回本壮士的函数本该返回的值，同时有额外操作**
+装饰器的典型行为就是：**把被装饰的函数体换成新函数，二者接受相同的参数，返回被装饰的函数本该返回的值，同时有额外操作**
+
+另外，内嵌包装函数 `clocked` 添加了functools库中的 `@wraps` 装饰器，这个装饰器可以把被包装函数的元数据，例如函数名、文档字符串、函数签名等信息保存下来。
+
+``` python
+print(snooze(5))
+print(snooze.__doc__)
+print('origin func name is:', snooze.__name__)
+```
+
+```
+[5.01506114s] snooze(5) -> None
+None
+ sleep for seconds
+origin func name is: snooze
+```
+
+### 参数化装饰器
+
+如果装饰器本身需要传入参数，那就需要编写一个返回decorator的高阶函数，也就是针对装饰器进行装饰。
+
+下面代码来自 Python Cookbook：
+
+``` python
+from functools import wraps
+import logging
+
+def logged(level, name=None, message=None):
+    """
+    Add logging to a function. level is the logging
+    level, name is the logger name, and message is the
+    log message. If name and message aren't specified,
+    they default to the function's module and name.
+    """
+    def decorate(func):
+        logname = name if name else func.__module__
+        log = logging.getLogger(logname)
+        logmsg = message if message else func.__name__
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            log.log(level, logmsg)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorate
+
+# Example use
+@logged(logging.DEBUG)
+def add(x, y):
+    return x + y
+
+@logged(logging.CRITICAL, 'example')
+def spam():
+    print('Spam!')
+```
+
+最外层的函数 `logged()` 接受参数并将它们作用在内部的装饰器函数上面。 内层的函数 `decorate()` 接受一个函数作为参数，然后在函数上面放置一个包装器。这个装饰器的处理过程相当于：
 
 
-## 参数化装饰器
+``` python
+spam = logged(x, y)(spam)
+```
+
+首先执行`logged('x', 'y')`，返回的是 `decorate` 函数，再调用返回的函数，参数是 `spam` 函数。
 
 ## 装饰器在真实世界的应用
+
+更多的装饰器的案例： [PythonDecoratorLibrary](https://wiki.python.org/moin/PythonDecoratorLibrary)
+
+### 1. 给函数调用做缓存
+
+像求第n个斐波那契数来说，是个递归算法，对于这种慢速递归，可以把耗时函数的结果先缓存起来，在调用函数之前先查询一下缓存，如果没有才调用函数
+
+``` python
+from functools import wraps
+
+def memo(func):
+    cache = {}
+    miss = object()
+
+    @wraps(func)
+    def wrapper(*args):
+        result = cache.get(args, miss)
+        if result is miss:
+            result = func(*args)
+            cache[args] = result
+        return result
+
+    return wrapper
+
+@memo
+@clock
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n-2) + fib(n-1)
+```
+
+也可以使用下面的functools库里面的 `lru_cache` 装饰器来实现缓存。
+
+### 2. LRUCache
+
+LRU就是Least Recently Used，即最近最少使用，是一种内存管理算法。
+
+``` python
+import functools
+
+@functools.lru_cache()
+@clock
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-2) + fibonacci(n-1)
+
+print(fibonacci(6))
+```
+
+### 3. 给函数输出记日志
+
+``` python
+import time
+from functools import wraps
+
+def log(func):
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        print("Function running")
+        ts = time.time()
+        result = func(*args, **kwargs)
+        te = time.time()
+        print("Function  = {0}".format(func.__name__))
+        print("Arguments = {0} {1}".format(args, kwargs))
+        print("Return    = {0}".format(result))
+        print("time      = %.6f seconds" % (te - ts))
+
+    return wrapper
+
+@log
+def sum(x, y):
+    return x + y
+
+print(sum(1, 2))
+```
+
+### 4. 数据库连接
+
+``` python
+def open_and_close_db(func):
+    def wrapper(*a, **k):
+        conn = connect_db()
+        result = func(conn=conn, *a, **k)
+        conn.commit()
+        conn.close()
+        return result
+    return wrapper
+
+@open_and_close_db
+def query_for_dict(sql, conn):
+    cur = conn.cursor()
+    try:
+        cur.execute(sql)
+        conn.commit()
+        entries = [dict(zip([i[0] for i in cur.description], row)) for row in cur.fetchall()]
+            print entries
+    except Exception,e:
+        print e
+    return entries
+```
+
+### 5. Flask路由
+
+拿Flask的 hello world来说：
+
+``` python
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    return "Hello World!"
+
+if __name__ == '__main__':
+    app.run()
+```
 
 
 到这儿，装饰器的一些基本概念就都清楚了。
