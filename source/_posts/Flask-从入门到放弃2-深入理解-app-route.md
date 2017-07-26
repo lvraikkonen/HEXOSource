@@ -4,9 +4,11 @@ tags:
   - Python
   - Flask
 categories: Flask从入门到放弃
+date: 2017-07-26 11:11:20
 ---
 
-下面这段代码是Flask的主页上给出的
+
+下面这段代码是Flask的主页上给出的，这是一段Hello World级别的代码段，但是里面包含的概念可一点都不简单。
 
 ``` python
 from flask import Flask
@@ -20,6 +22,8 @@ def hello():
 这里面的 `@app.route('/')` 到底是什么意思呢，具体又是如何实现的呢？很多初学者都是很迷茫。我在集中精力理解了装饰器之后，慢慢的就对app.route 这个装饰器的原理以及目的有了了解了。
 
 以前写过一篇文章，详细说明了装饰器的概念：[搞懂Python装饰器](https://lvraikkonen.github.io/2017/07/20/%E6%90%9E%E6%87%82Python%E8%A3%85%E9%A5%B0%E5%99%A8/) 要是忘了可以随时复习一下。
+
+<!-- more -->
 
 ## 给装饰器传参数
 
